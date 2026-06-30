@@ -330,6 +330,79 @@
 
     .hint { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 7px; }
 
+    /* ── Pricing modal ────────────────────────────────────────── */
+    #pricing-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      z-index: 300; display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    #pricing-backdrop.open { display: flex; }
+    .pricing-modal {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+      padding: 32px 28px; width: 100%; max-width: 780px; max-height: 90vh; overflow-y: auto;
+      animation: fadeIn 0.2s ease;
+    }
+    .pricing-modal::-webkit-scrollbar { width: 4px; }
+    .pricing-modal::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+    .pricing-header { text-align: center; margin-bottom: 24px; }
+    .pricing-header h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .pricing-header p { color: var(--text-muted); font-size: 14px; }
+    .pricing-toggle {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      margin: 18px 0 24px; font-size: 13.5px;
+    }
+    .pricing-toggle span { color: var(--text-muted); }
+    .pricing-toggle span.active { color: var(--text); font-weight: 600; }
+    .billing-badge {
+      background: rgba(76,175,125,0.15); color: var(--green); font-size: 11px;
+      padding: 2px 8px; border-radius: 99px; font-weight: 600;
+    }
+    .plans-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    }
+    @media (max-width: 600px) { .plans-grid { grid-template-columns: 1fr; } }
+    .plan-card {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 14px;
+      padding: 22px 18px; display: flex; flex-direction: column; gap: 14px; position: relative;
+    }
+    .plan-card.popular { border-color: var(--accent); }
+    .popular-badge {
+      position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+      background: var(--accent); color: white; font-size: 10.5px; font-weight: 600;
+      padding: 2px 12px; border-radius: 99px; white-space: nowrap;
+    }
+    .plan-name { font-size: 13px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.5px; text-transform: uppercase; }
+    .plan-price { display: flex; align-items: baseline; gap: 4px; }
+    .plan-price .amount { font-size: 32px; font-weight: 700; }
+    .plan-price .period { font-size: 13px; color: var(--text-muted); }
+    .plan-features { list-style: none; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+    .plan-features li { font-size: 13px; display: flex; align-items: flex-start; gap: 8px; }
+    .plan-features li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .plan-features li.no::before { content: '✕'; color: var(--text-muted); }
+    .plan-features li.no { color: var(--text-muted); }
+    .plan-btn {
+      width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border);
+      font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+      transition: all 0.15s;
+    }
+    .plan-btn.free { background: none; color: var(--text-muted); }
+    .plan-btn.free:hover { border-color: var(--text-muted); color: var(--text); }
+    .plan-btn.upgrade { background: var(--accent); color: white; border-color: var(--accent); }
+    .plan-btn.upgrade:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .plan-btn.current { background: var(--surface); color: var(--text-muted); cursor: default; }
+    .pricing-close-row { text-align: center; margin-top: 20px; }
+    .pricing-close-row button { background: none; border: none; color: var(--text-muted); font-size: 13px; cursor: pointer; font-family: inherit; }
+    .pricing-close-row button:hover { color: var(--text); }
+
+    /* upgrade nudge banner */
+    #upgrade-banner {
+      background: linear-gradient(135deg, rgba(124,110,245,0.15), rgba(76,175,125,0.1));
+      border: 1px solid rgba(124,110,245,0.35); border-radius: 10px;
+      padding: 10px 14px; margin: 0 16px 10px; display: none;
+      font-size: 12.5px; align-items: center; gap: 10px;
+    }
+    #upgrade-banner.visible { display: flex; }
+    #upgrade-banner button { background: var(--accent); color: white; border: none; border-radius: 7px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+
     /* ── Sessions sidebar ─────────────────────────────────────── */
     #sessions-backdrop {
       position: fixed; inset: 0; background: rgba(0,0,0,0.5);
@@ -445,6 +518,81 @@
       </button>
     </div>
     <p id="oauth-error" style="font-size:13px;color:var(--red);text-align:center;display:none"></p>
+  </div>
+</div>
+
+<!-- ── Pricing modal ──────────────────────────────────────── -->
+<div id="pricing-backdrop" onclick="handlePricingBackdropClick(event)">
+  <div class="pricing-modal">
+    <div class="pricing-header">
+      <h2>Choose your plan</h2>
+      <p>Upgrade anytime. Cancel anytime.</p>
+    </div>
+
+    <div class="pricing-toggle">
+      <span id="toggle-monthly" class="active">Monthly</span>
+      <label class="toggle" style="margin:0">
+        <input type="checkbox" id="billing-toggle" onchange="switchBilling(this.checked)">
+        <span class="toggle-track"></span>
+      </label>
+      <span id="toggle-yearly">Yearly</span>
+      <span class="billing-badge">Save up to 58%</span>
+    </div>
+
+    <div class="plans-grid">
+      <!-- Basic -->
+      <div class="plan-card">
+        <div class="plan-name">Basic</div>
+        <div class="plan-price"><span class="amount">$0</span><span class="period">/mo</span></div>
+        <ul class="plan-features">
+          <li>20 messages per day</li>
+          <li>Standard AI responses</li>
+          <li class="no">ElevenLabs human voices</li>
+          <li class="no">Chat history saved</li>
+          <li class="no">Custom AI personality</li>
+        </ul>
+        <button class="plan-btn current" id="basic-btn">Current plan</button>
+      </div>
+
+      <!-- Pro -->
+      <div class="plan-card popular">
+        <div class="popular-badge">⭐ Most Popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">
+          <span class="amount" id="pro-price">$20</span>
+          <span class="period" id="pro-period">/mo</span>
+        </div>
+        <ul class="plan-features">
+          <li>Unlimited messages</li>
+          <li>Faster AI responses</li>
+          <li>ElevenLabs human voices</li>
+          <li>Full chat history</li>
+          <li class="no">Custom AI personality</li>
+        </ul>
+        <button class="plan-btn upgrade" id="pro-btn" onclick="startCheckout('pro')">Upgrade to Pro</button>
+      </div>
+
+      <!-- Premium -->
+      <div class="plan-card">
+        <div class="plan-name">Premium</div>
+        <div class="plan-price">
+          <span class="amount" id="premium-price">$75</span>
+          <span class="period" id="premium-period">/mo</span>
+        </div>
+        <ul class="plan-features">
+          <li>Everything in Pro</li>
+          <li>Priority AI responses</li>
+          <li>ElevenLabs human voices</li>
+          <li>Full chat history</li>
+          <li>Custom AI personality</li>
+        </ul>
+        <button class="plan-btn upgrade" id="premium-btn" onclick="startCheckout('premium')">Upgrade to Premium</button>
+      </div>
+    </div>
+
+    <div class="pricing-close-row">
+      <button onclick="closePricing()">Maybe later</button>
+    </div>
   </div>
 </div>
 
@@ -587,6 +735,21 @@
     </div>
   </div>
 
+  <!-- Subscription section -->
+  <div class="settings-section">
+    <div class="settings-section-title">💳 Subscription</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <div class="settings-label">Current plan</div>
+        <div id="plan-badge" style="font-size:13px;margin-top:3px;color:var(--text-muted)">Basic (Free)</div>
+      </div>
+      <button class="plan-btn upgrade" style="width:auto;padding:7px 14px;font-size:12.5px" onclick="openPricing()">Upgrade</button>
+    </div>
+    <div id="manage-sub-row" style="display:none">
+      <button class="header-btn" style="font-size:12px;padding:6px 14px" onclick="manageSubscription()">Manage / Cancel subscription</button>
+    </div>
+  </div>
+
   <div class="settings-section" id="account-section">
     <div class="settings-section-title">👤 Account</div>
 
@@ -636,9 +799,15 @@
       </svg>
     </button>
     <button class="header-btn" onclick="clearChat()">Clear</button>
+    <button class="header-btn" onclick="openPricing()" id="plans-btn" style="display:none;color:var(--accent);border-color:var(--accent)">Plans</button>
     <button id="signout-btn" onclick="signOut()" style="display:none" class="header-btn">Sign out</button>
   </div>
 </header>
+
+<div id="upgrade-banner">
+  <span id="upgrade-banner-msg" style="flex:1">⚡ You've used <strong id="msg-count-display">0</strong>/20 free messages today.</span>
+  <button onclick="openPricing()">Upgrade</button>
+</div>
 
 <div id="chat">
   <div class="empty-state" id="empty-state">
@@ -694,6 +863,137 @@ let isListening = false;
 let weatherData = null;
 let voicesList  = [];
 let currentSessionId = null;
+let currentPlan = 'basic'; // basic | pro | premium
+let yearlyBilling = false;
+
+// ── Subscription & pricing ─────────────────────────────────────
+const PRICES = {
+  monthly: { pro: '$20', premium: '$75' },
+  yearly:  { pro: '$100', premium: '$175' },
+};
+const DAILY_LIMIT = 20;
+
+function getDailyUsage() {
+  const today = new Date().toDateString();
+  const data  = JSON.parse(localStorage.getItem('roboti_usage') || '{}');
+  if (data.date !== today) return 0;
+  return data.count || 0;
+}
+function incDailyUsage() {
+  const today = new Date().toDateString();
+  const data  = JSON.parse(localStorage.getItem('roboti_usage') || '{}');
+  const count = (data.date === today ? (data.count || 0) : 0) + 1;
+  localStorage.setItem('roboti_usage', JSON.stringify({ date: today, count }));
+  return count;
+}
+function canSendMessage() {
+  if (currentPlan !== 'basic') return true;
+  return getDailyUsage() < DAILY_LIMIT;
+}
+function updateUpgradeBanner() {
+  const banner = document.getElementById('upgrade-banner');
+  if (currentPlan !== 'basic') { banner.classList.remove('visible'); return; }
+  const used = getDailyUsage();
+  document.getElementById('msg-count-display').textContent = used;
+  if (used >= DAILY_LIMIT * 0.7) {
+    banner.classList.add('visible');
+    const remaining = DAILY_LIMIT - used;
+    document.getElementById('upgrade-banner-msg').innerHTML =
+      remaining > 0
+        ? `⚡ <strong>${remaining}</strong> free message${remaining === 1 ? '' : 's'} left today.`
+        : `🚫 Daily limit reached. Upgrade for unlimited messages.`;
+  } else {
+    banner.classList.remove('visible');
+  }
+}
+
+function openPricing() {
+  updatePricingUI();
+  document.getElementById('pricing-backdrop').classList.add('open');
+}
+function closePricing() {
+  document.getElementById('pricing-backdrop').classList.remove('open');
+}
+function handlePricingBackdropClick(e) {
+  if (e.target === document.getElementById('pricing-backdrop')) closePricing();
+}
+function switchBilling(yearly) {
+  yearlyBilling = yearly;
+  document.getElementById('toggle-monthly').classList.toggle('active', !yearly);
+  document.getElementById('toggle-yearly').classList.toggle('active', yearly);
+  updatePricingUI();
+}
+function updatePricingUI() {
+  const billing = yearlyBilling ? 'yearly' : 'monthly';
+  document.getElementById('pro-price').textContent     = PRICES[billing].pro;
+  document.getElementById('pro-period').textContent    = yearlyBilling ? '/yr' : '/mo';
+  document.getElementById('premium-price').textContent = PRICES[billing].premium;
+  document.getElementById('premium-period').textContent = yearlyBilling ? '/yr' : '/mo';
+
+  // Update button states
+  const tiers = ['basic', 'pro', 'premium'];
+  tiers.forEach(tier => {
+    const btn = document.getElementById(tier + '-btn');
+    if (!btn) return;
+    if (tier === currentPlan) {
+      btn.textContent = 'Current plan';
+      btn.className = 'plan-btn current';
+      btn.onclick = null;
+    } else if (tiers.indexOf(tier) < tiers.indexOf(currentPlan)) {
+      btn.textContent = 'Downgrade';
+      btn.className = 'plan-btn free';
+      btn.onclick = () => startCheckout(tier);
+    } else {
+      btn.textContent = `Upgrade to ${tier.charAt(0).toUpperCase()+tier.slice(1)}`;
+      btn.className = 'plan-btn upgrade';
+      btn.onclick = () => startCheckout(tier);
+    }
+  });
+}
+
+async function startCheckout(tier) {
+  if (tier === 'basic') { alert('Contact support to downgrade.'); return; }
+  const billing = yearlyBilling ? 'yearly' : 'monthly';
+  try {
+    const resp = await fetch('/api/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tier, billing }),
+    });
+    const data = await resp.json();
+    if (data.url) window.location.href = data.url;
+    else alert(data.error || 'Could not start checkout. Stripe may not be configured yet.');
+  } catch { alert('Network error. Please try again.'); }
+}
+
+async function loadSubscription() {
+  try {
+    const resp = await fetch('/api/subscription');
+    const data = await resp.json();
+    currentPlan = data.tier || 'basic';
+  } catch { currentPlan = 'basic'; }
+  updateUpgradeBanner();
+  const plansBtn = document.getElementById('plans-btn');
+  if (plansBtn) plansBtn.style.display = currentPlan === 'basic' ? '' : 'none';
+  // update settings badge
+  const badge = document.getElementById('plan-badge');
+  const manageRow = document.getElementById('manage-sub-row');
+  if (badge) {
+    const labels = { basic: 'Basic (Free)', pro: '⭐ Pro', premium: '👑 Premium' };
+    badge.textContent = labels[currentPlan] || 'Basic (Free)';
+    badge.style.color = currentPlan === 'basic' ? 'var(--text-muted)' : 'var(--accent)';
+  }
+  if (manageRow) manageRow.style.display = currentPlan !== 'basic' ? '' : 'none';
+}
+
+async function manageSubscription() {
+  try {
+    const resp = await fetch('/api/customer-portal', { method: 'POST' });
+    const data = await resp.json();
+    if (data.url) window.location.href = data.url;
+    else alert(data.error || 'Could not open portal.');
+  } catch { alert('Network error.'); }
+}
 
 // ── Sessions ───────────────────────────────────────────────────
 function loadSessions() {
@@ -750,7 +1050,7 @@ function deleteSession(id, e) {
   }
 }
 function saveCurrentSession() {
-  if (!currentSessionId || !currentUser) return;
+  if (!currentSessionId || !currentUser || currentPlan === 'basic') return;
   const sessions = loadSessions();
   const existing = sessions.findIndex(s => s.id === currentSessionId);
   const title = messages.find(m => m.role === 'user')?.content?.slice(0, 40) || 'New chat';
@@ -1000,7 +1300,7 @@ async function speak(text, onEnd) {
   const cleaned = cleanTextForSpeech(text);
 
   // Use ElevenLabs if API key is set
-  if (localStorage.getItem('roboti_el_key')) {
+  if (localStorage.getItem('roboti_el_key') && currentPlan !== 'basic') {
     const ok = await speakWithElevenLabs(cleaned, onEnd);
     if (ok) return;
     // fall through to browser TTS if ElevenLabs failed
@@ -1202,18 +1502,25 @@ function showApp(username, authType) {
   document.getElementById('google-pw-note').style.display     = isGoogle ? 'block' : 'none';
   document.getElementById('account-section').style.display    = isGuest  ? 'none'  : 'block';
   document.getElementById('sessions-btn').style.display = 'flex';
-  // initialize first session
-  const sessions = loadSessions();
-  if (sessions.length) {
-    currentSessionId = sessions[0].id;
-    messages = sessions[0].messages || [];
-    if (messages.length) {
-      emptyState.style.display = 'none';
-      messages.forEach(m => appendMessage(m.role, m.content));
+  document.getElementById('plans-btn').style.display = '';
+  loadSubscription().then(() => {
+    // load sessions only for pro/premium
+    if (currentPlan !== 'basic') {
+      const sessions = loadSessions();
+      if (sessions.length) {
+        currentSessionId = sessions[0].id;
+        messages = sessions[0].messages || [];
+        if (messages.length) {
+          emptyState.style.display = 'none';
+          messages.forEach(m => appendMessage(m.role, m.content));
+        }
+      } else {
+        currentSessionId = crypto.randomUUID();
+      }
+    } else {
+      currentSessionId = crypto.randomUUID();
     }
-  } else {
-    currentSessionId = crypto.randomUUID();
-  }
+  });
   inputEl.focus();
 }
 
@@ -1284,6 +1591,16 @@ function appendMessage(role, text = '') {
 async function sendMessage() {
   const text = inputEl.value.trim();
   if (!text || isStreaming) return;
+
+  if (!canSendMessage()) {
+    openPricing();
+    return;
+  }
+
+  if (currentPlan === 'basic') {
+    incDailyUsage();
+    updateUpgradeBanner();
+  }
 
   speechSynthesis.cancel();
   inputEl.value = '';

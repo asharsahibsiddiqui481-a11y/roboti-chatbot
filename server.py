@@ -2,6 +2,7 @@ import json
 import os
 import re
 import secrets
+import stripe
 from dotenv import load_dotenv
 from flask import Flask, request, Response, send_from_directory, session, jsonify, redirect, url_for
 from groq import Groq
@@ -22,6 +23,15 @@ API_KEY = os.environ.get('GROQ_API_KEY', '')
 client = Groq(api_key=API_KEY) if API_KEY else None
 
 USERS_FILE = os.path.join(os.path.dirname(__file__), 'users.json')
+SUBS_FILE  = os.path.join(os.path.dirname(__file__), 'subscriptions.json')
+
+stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
+
+# Stripe Price IDs — fill these in after creating products in Stripe dashboard
+STRIPE_PRICES = {
+    'pro':     {'monthly': os.environ.get('STRIPE_PRO_MONTHLY', ''),     'yearly': os.environ.get('STRIPE_PRO_YEARLY', '')},
+    'premium': {'monthly': os.environ.get('STRIPE_PREMIUM_MONTHLY', ''), 'yearly': os.environ.get('STRIPE_PREMIUM_YEARLY', '')},
+}
 
 # ── OAuth setup ────────────────────────────────────────────────
 oauth = OAuth(app)
@@ -55,6 +65,27 @@ def load_users():
 def save_users(users):
     with open(USERS_FILE, 'w') as f:
         json.dump(users, f, indent=2)
+
+
+def load_subs():
+    if not os.path.exists(SUBS_FILE):
+        return {}
+    with open(SUBS_FILE) as f:
+        return json.load(f)
+
+
+def save_subs(subs):
+    with open(SUBS_FILE, 'w') as f:
+        json.dump(subs, f, indent=2)
+
+
+def get_user_tier(username):
+    subs = load_subs()
+    info = subs.get(username, {})
+    import time
+    if info.get('tier') in ('pro', 'premium') and info.get('period_end', 0) > time.time():
+        return info['tier']
+    return 'basic'
 
 
 # ── Static pages ───────────────────────────────────────────────
@@ -308,6 +339,120 @@ def tts():
     if resp.status_code != 200:
         return jsonify({'error': f'ElevenLabs error {resp.status_code}'}), 502
     return Response(resp.content, mimetype='audio/mpeg')
+
+
+# ── Subscription endpoints ─────────────────────────────────────
+@app.get('/api/subscription')
+def get_subscription():
+    if 'username' not in session:
+        return jsonify({'tier': 'basic'})
+    return jsonify({'tier': get_user_tier(session['username'])})
+
+
+@app.post('/api/create-checkout')
+def create_checkout():
+    if 'username' not in session:
+        return jsonify({'error': 'Not logged in.'}), 401
+    if not stripe.api_key:
+        return jsonify({'error': 'Stripe not configured yet.'}), 503
+
+    body    = request.get_json()
+    tier    = body.get('tier')
+    billing = body.get('billing', 'monthly')
+    price_id = STRIPE_PRICES.get(tier, {}).get(billing, '')
+    if not price_id:
+        return jsonify({'error': 'Invalid plan or Stripe price IDs not set.'}), 400
+
+    base_url = request.host_url.rstrip('/')
+    subs = load_subs()
+    customer_id = subs.get(session['username'], {}).get('stripe_customer_id')
+
+    params = dict(
+        mode='subscription',
+        line_items=[{'price': price_id, 'quantity': 1}],
+        success_url=base_url + '/?checkout=success',
+        cancel_url=base_url + '/?checkout=cancel',
+        metadata={'username': session['username'], 'tier': tier},
+    )
+    if customer_id:
+        params['customer'] = customer_id
+    else:
+        params['customer_creation'] = 'always'
+
+    checkout = stripe.checkout.Session.create(**params)
+    return jsonify({'url': checkout.url})
+
+
+@app.post('/api/customer-portal')
+def customer_portal():
+    if 'username' not in session:
+        return jsonify({'error': 'Not logged in.'}), 401
+    if not stripe.api_key:
+        return jsonify({'error': 'Stripe not configured yet.'}), 503
+
+    subs = load_subs()
+    customer_id = subs.get(session['username'], {}).get('stripe_customer_id')
+    if not customer_id:
+        return jsonify({'error': 'No active subscription found.'}), 400
+
+    base_url = request.host_url.rstrip('/')
+    portal = stripe.billing_portal.Session.create(
+        customer=customer_id,
+        return_url=base_url + '/',
+    )
+    return jsonify({'url': portal.url})
+
+
+@app.post('/api/stripe-webhook')
+def stripe_webhook():
+    payload = request.get_data()
+    sig     = request.headers.get('Stripe-Signature', '')
+    secret  = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+    try:
+        event = stripe.Webhook.construct_event(payload, sig, secret) if secret else json.loads(payload)
+    except Exception:
+        return 'Bad signature', 400
+
+    import time
+    ev_type = event.get('type', '')
+    obj     = event['data']['object']
+
+    if ev_type in ('checkout.session.completed',):
+        username = obj.get('metadata', {}).get('username', '')
+        tier     = obj.get('metadata', {}).get('tier', 'basic')
+        cus_id   = obj.get('customer', '')
+        sub_id   = obj.get('subscription', '')
+        if username and tier:
+            subs = load_subs()
+            subs[username] = {
+                'tier': tier,
+                'stripe_customer_id': cus_id,
+                'stripe_subscription_id': sub_id,
+                'period_end': time.time() + 31 * 86400,
+            }
+            save_subs(subs)
+
+    elif ev_type in ('invoice.paid',):
+        sub_id = obj.get('subscription', '')
+        cus_id = obj.get('customer', '')
+        period_end = obj.get('lines', {}).get('data', [{}])[0].get('period', {}).get('end', 0)
+        subs = load_subs()
+        for username, info in subs.items():
+            if info.get('stripe_subscription_id') == sub_id:
+                info['period_end'] = period_end or time.time() + 31 * 86400
+                save_subs(subs)
+                break
+
+    elif ev_type in ('customer.subscription.deleted',):
+        sub_id = obj.get('id', '')
+        subs = load_subs()
+        for username, info in subs.items():
+            if info.get('stripe_subscription_id') == sub_id:
+                info['tier'] = 'basic'
+                save_subs(subs)
+                break
+
+    return 'ok', 200
 
 
 if __name__ == '__main__':

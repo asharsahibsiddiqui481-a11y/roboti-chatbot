@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import requests
 import secrets
 import stripe
 from dotenv import load_dotenv

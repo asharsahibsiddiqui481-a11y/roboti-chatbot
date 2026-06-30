@@ -1661,9 +1661,29 @@ if (oauthError) {
   history.replaceState({}, '', '/');
 }
 
+// ── Handle Stripe checkout return ──────────────────────────────
+async function handleCheckoutReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const sessionId = params.get('session_id');
+  const status = params.get('checkout');
+  if (status === 'success' && sessionId) {
+    history.replaceState({}, '', '/');
+    try {
+      const r = await fetch('/api/checkout-success?session_id=' + sessionId);
+      const d = await r.json();
+      if (d.ok) {
+        currentPlan = d.tier;
+        await loadSubscription();
+      }
+    } catch {}
+  } else if (status === 'cancel') {
+    history.replaceState({}, '', '/');
+  }
+}
+
 // ── Init ───────────────────────────────────────────────────────
 loadSettings();
-checkSession();
+checkSession().then(handleCheckoutReturn);
 </script>
 </body>
 </html>

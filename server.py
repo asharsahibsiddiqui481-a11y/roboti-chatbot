@@ -424,7 +424,7 @@ def create_checkout():
     params = dict(
         mode='subscription',
         line_items=[{'price': price_id, 'quantity': 1}],
-        success_url=base_url + '/?checkout=success',
+        success_url=base_url + '/?checkout=success&session_id={CHECKOUT_SESSION_ID}',
         cancel_url=base_url + '/?checkout=cancel',
         metadata={'username': session['username'], 'tier': tier},
     )
@@ -433,6 +433,33 @@ def create_checkout():
 
     checkout = stripe.checkout.Session.create(**params)
     return jsonify({'url': checkout.url})
+
+
+@app.get('/api/checkout-success')
+def checkout_success():
+    import time
+    if 'username' not in session:
+        return jsonify({'error': 'Not logged in.'}), 401
+    session_id = request.args.get('session_id', '')
+    if not session_id:
+        return jsonify({'error': 'No session ID'}), 400
+    try:
+        cs = stripe.checkout.Session.retrieve(session_id)
+        if cs.payment_status not in ('paid', 'no_payment_required'):
+            return jsonify({'error': 'Payment not completed'}), 400
+        tier = (cs.metadata or {}).get('tier', 'pro')
+        username = session['username']
+        subs = load_subs()
+        subs[username] = {
+            'tier': tier,
+            'stripe_customer_id': cs.customer,
+            'stripe_subscription_id': cs.subscription,
+            'period_end': time.time() + 31 * 86400,
+        }
+        save_subs(subs)
+        return jsonify({'ok': True, 'tier': tier})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.post('/api/customer-portal')

@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "weather-app",
+      "runtimeExecutable": "/usr/bin/python3",
+      "runtimeArgs": ["serve_weather.py"],
+      "port": 3001,
+      "autoPort": true
+    }
+  ]
+}

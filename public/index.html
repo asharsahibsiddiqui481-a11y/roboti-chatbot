@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ROBOTI CHATBOT</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3250;
+      --accent: #7c6ef5;
+      --accent-hover: #6a5ce0;
+      --user-bubble: #3b3f6e;
+      --ai-bubble: #1e2235;
+      --text: #e8eaf0;
+      --text-muted: #8891b0;
+      --scrollbar: #2e3250;
+      --radius: 16px;
+      --red: #f05050;
+      --green: #4caf7d;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Auth overlay ─────────────────────────────────────────── */
+    #auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 20px;
+    }
+    #auth-overlay.hidden { display: none; }
+
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 380px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      animation: fadeIn 0.25s ease;
+    }
+    .auth-logo { text-align: center; font-size: 40px; }
+    .auth-title { text-align: center; font-size: 22px; font-weight: 700; letter-spacing: -0.4px; }
+    .auth-subtitle { text-align: center; font-size: 13.5px; color: var(--text-muted); margin-top: -12px; }
+
+    .auth-tabs { display: flex; background: var(--surface2); border-radius: 10px; padding: 3px; gap: 3px; }
+    .auth-tab {
+      flex: 1; padding: 8px; border: none; background: none; color: var(--text-muted);
+      font-size: 13.5px; font-weight: 500; border-radius: 8px; cursor: pointer;
+      transition: all 0.15s; font-family: inherit;
+    }
+    .auth-tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+
+    .auth-fields { display: flex; flex-direction: column; gap: 12px; }
+    .auth-input {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 11px 14px; color: var(--text); font-size: 14px;
+      font-family: inherit; outline: none; transition: border-color 0.15s;
+    }
+    .auth-input:focus { border-color: var(--accent); }
+    .auth-input::placeholder { color: var(--text-muted); }
+
+    .auth-btn {
+      width: 100%; padding: 12px; background: var(--accent); border: none; border-radius: 10px;
+      color: white; font-size: 14.5px; font-weight: 600; cursor: pointer;
+      transition: background 0.15s, transform 0.1s; font-family: inherit;
+    }
+    .auth-btn:hover { background: var(--accent-hover); }
+    .auth-btn:active { transform: scale(0.98); }
+    .auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .auth-error { font-size: 13px; color: var(--red); text-align: center; min-height: 18px; }
+
+    .social-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 11px 14px; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text); font-size: 14px; font-family: inherit;
+      cursor: pointer; text-decoration: none; transition: border-color 0.15s, background 0.15s;
+    }
+    .social-btn:hover { border-color: var(--accent); background: rgba(124,110,245,0.06); }
+
+    /* ── Settings panel ───────────────────────────────────────── */
+    #settings-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      z-index: 149; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    }
+    #settings-backdrop.visible { opacity: 1; pointer-events: all; }
+
+    #settings-panel {
+      position: fixed; top: 0; right: 0; bottom: 0; width: 320px;
+      background: var(--surface); border-left: 1px solid var(--border);
+      z-index: 150; transform: translateX(100%); transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+      display: flex; flex-direction: column; overflow-y: auto;
+    }
+    #settings-panel.open { transform: translateX(0); }
+    #settings-panel::-webkit-scrollbar { width: 4px; }
+    #settings-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .settings-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 20px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .settings-header h2 { font-size: 16px; font-weight: 700; }
+    .settings-close {
+      width: 28px; height: 28px; border-radius: 8px; border: none;
+      background: var(--surface2); color: var(--text-muted); cursor: pointer;
+      font-size: 14px; display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; font-family: inherit;
+    }
+    .settings-close:hover { color: var(--text); }
+
+    .settings-section { padding: 20px; border-bottom: 1px solid var(--border); }
+    .settings-section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 16px;
+    }
+
+    .settings-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; gap: 12px;
+    }
+    .settings-row:last-child { margin-bottom: 0; }
+    .settings-label { font-size: 14px; }
+    .settings-sublabel { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    /* Toggle switch */
+    .toggle { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 99px; cursor: pointer; transition: background 0.2s, border-color 0.2s;
+    }
+    .toggle input:checked + .toggle-track { background: var(--accent); border-color: var(--accent); }
+    .toggle-track::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; background: white; border-radius: 50%;
+      transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .toggle input:checked + .toggle-track::after { transform: translateX(18px); }
+
+    .settings-select {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 10px; color: var(--text); font-size: 13px;
+      font-family: inherit; outline: none; cursor: pointer; margin-top: 8px;
+    }
+    .settings-select:focus { border-color: var(--accent); }
+    .settings-select option { background: var(--surface2); }
+
+    .settings-range { width: 100%; accent-color: var(--accent); margin-top: 8px; cursor: pointer; }
+
+    .settings-preview-btn {
+      margin-top: 10px; width: 100%; padding: 8px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted);
+      font-size: 13px; font-family: inherit; cursor: pointer; transition: all 0.15s;
+    }
+    .settings-preview-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    .integration-status {
+      font-size: 11.5px; color: var(--text-muted); margin-top: 4px;
+    }
+    .integration-status.active { color: var(--green); }
+
+    /* ── Header ───────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+      background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .logo {
+      width: 32px; height: 32px; border-radius: 9px;
+      background: linear-gradient(135deg, var(--accent), #b06ef5);
+      display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+    }
+    header h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+    header .model-tag {
+      font-size: 11px; color: var(--text-muted); background: var(--surface2);
+      padding: 3px 8px; border-radius: 99px; border: 1px solid var(--border); white-space: nowrap;
+    }
+
+    /* Voice conversation indicator */
+    #convo-indicator {
+      display: none; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--accent);
+      background: rgba(124,110,245,0.1); border: 1px solid rgba(124,110,245,0.3);
+      padding: 3px 10px; border-radius: 99px;
+    }
+    #convo-indicator.visible { display: flex; }
+    .convo-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+      animation: pulse-dot 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+
+    .header-right { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+
+    .header-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-muted);
+      font-size: 12px; padding: 4px 10px; border-radius: 99px; cursor: pointer;
+      transition: all 0.15s; font-family: inherit; white-space: nowrap;
+    }
+    .header-btn:hover { color: var(--text); border-color: var(--text-muted); }
+    .header-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(124,110,245,0.1); }
+
+    .icon-header-btn {
+      width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--border);
+      background: none; color: var(--text-muted); cursor: pointer; display: flex;
+      align-items: center; justify-content: center; transition: all 0.15s;
+    }
+    .icon-header-btn:hover { color: var(--text); border-color: var(--text-muted); }
+
+    #user-pill {
+      display: flex; align-items: center; gap: 6px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 99px; padding: 2px 10px 2px 4px;
+      font-size: 12px; color: var(--text-muted);
+    }
+    .user-avatar {
+      width: 20px; height: 20px; border-radius: 50%; background: var(--accent);
+      color: white; font-size: 10px; font-weight: 700; display: flex;
+      align-items: center; justify-content: center; text-transform: uppercase;
+    }
+
+    /* ── Chat ─────────────────────────────────────────────────── */
+    #chat {
+      flex: 1; overflow-y: auto; padding: 20px 16px; display: flex;
+      flex-direction: column; gap: 18px; scroll-behavior: smooth;
+    }
+    #chat::-webkit-scrollbar { width: 5px; }
+    #chat::-webkit-scrollbar-track { background: transparent; }
+    #chat::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+
+    .message { display: flex; gap: 10px; animation: fadeIn 0.2s ease; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user { flex-direction: row-reverse; }
+    .avatar {
+      width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;
+    }
+    .message.user .avatar { background: var(--accent); color: white; }
+    .message.assistant .avatar { background: linear-gradient(135deg, #5a4fcf, #9060d0); color: white; }
+
+    .bubble {
+      max-width: min(480px, 78%); padding: 11px 15px; border-radius: var(--radius);
+      line-height: 1.65; font-size: 14.5px; white-space: pre-wrap; word-break: break-word;
+    }
+    .message.user .bubble { background: var(--user-bubble); border-bottom-right-radius: 4px; }
+    .message.assistant .bubble { background: var(--ai-bubble); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+    .message.assistant .bubble.speaking { border-color: var(--accent); }
+
+    .cursor {
+      display: inline-block; width: 2px; height: 1em; background: var(--accent);
+      margin-left: 2px; vertical-align: text-bottom; animation: blink 0.7s step-end infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* ── Empty state ──────────────────────────────────────────── */
+    .empty-state {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 12px; color: var(--text-muted); text-align: center;
+    }
+    .empty-state .icon { font-size: 44px; }
+    .empty-state h2 { font-size: 19px; font-weight: 600; color: var(--text); }
+    .empty-state p { font-size: 13.5px; max-width: 280px; }
+    .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 6px; }
+    .suggestion-btn {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
+      padding: 7px 13px; border-radius: 99px; font-size: 13px; cursor: pointer;
+      transition: all 0.15s; font-family: inherit;
+    }
+    .suggestion-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    /* ── Footer / input ───────────────────────────────────────── */
+    footer {
+      padding: 12px 16px 16px; background: var(--surface);
+      border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+    .input-row {
+      display: flex; gap: 8px; align-items: flex-end; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 14px; padding: 9px 10px;
+      transition: border-color 0.15s;
+    }
+    .input-row:focus-within { border-color: var(--accent); }
+    #user-input {
+      flex: 1; background: none; border: none; outline: none; color: var(--text);
+      font-size: 14.5px; line-height: 1.5; resize: none; max-height: 130px; font-family: inherit;
+    }
+    #user-input::placeholder { color: var(--text-muted); }
+
+    .icon-btn {
+      width: 32px; height: 32px; border-radius: 8px; border: none; color: white;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background 0.15s, transform 0.1s;
+    }
+    .icon-btn:active:not(:disabled) { transform: scale(0.91); }
+    .icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #send-btn { background: var(--accent); }
+    #send-btn:hover:not(:disabled) { background: var(--accent-hover); }
+
+    #mic-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); }
+    #mic-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    #mic-btn.listening { background: var(--red); border-color: var(--red); color: white; animation: mic-pulse 1.2s ease-in-out infinite; }
+
+    @keyframes mic-pulse {
+      0%,100%{ box-shadow: 0 0 0 0 rgba(240,80,80,0.4); }
+      50%    { box-shadow: 0 0 0 8px rgba(240,80,80,0); }
+    }
+
+    .hint { text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 7px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Auth overlay ──────────────────────────────────────── -->
+<div id="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">✦</div>
+    <div class="auth-title">ROBOTI CHATBOT</div>
+    <p class="auth-subtitle">Sign in to start chatting</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">Sign In</button>
+      <button class="auth-tab" onclick="switchTab('register')">Create Account</button>
+    </div>
+
+    <div class="auth-fields">
+      <input class="auth-input" id="auth-username" type="text" placeholder="Username" autocomplete="username" />
+      <div style="position:relative">
+        <input class="auth-input" id="auth-password" type="password" placeholder="Password" autocomplete="current-password" style="padding-right:42px;width:100%" />
+        <button type="button" onclick="togglePasswordVisibility('auth-password','eye-icon')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);padding:0;display:flex;align-items:center" title="Show/hide password">
+          <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+      <div id="confirm-password-wrap" style="position:relative;display:none">
+        <input class="auth-input" id="auth-confirm-password" type="password" placeholder="Confirm Password" autocomplete="new-password" style="padding-right:42px;width:100%" />
+        <button type="button" onclick="togglePasswordVisibility('auth-confirm-password','eye-icon-confirm')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);padding:0;display:flex;align-items:center" title="Show/hide password">
+          <svg id="eye-icon-confirm" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+      <p class="auth-error" id="auth-error"></p>
+      <button class="auth-btn" id="auth-submit" onclick="submitAuth()">Sign In</button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;color:var(--text-muted);font-size:12px">
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+      or continue with
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <a href="/auth/google" class="social-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </a>
+      <button class="social-btn" style="border-color:var(--border);color:var(--text-muted)" onclick="continueAsGuest()">
+        Continue as Guest
+      </button>
+    </div>
+    <p id="oauth-error" style="font-size:13px;color:var(--red);text-align:center;display:none"></p>
+  </div>
+</div>
+
+<!-- ── Settings panel ─────────────────────────────────────── -->
+<div id="settings-backdrop" onclick="closeSettings()"></div>
+<div id="settings-panel">
+  <div class="settings-header">
+    <h2>⚙️ Settings</h2>
+    <button class="settings-close" onclick="closeSettings()">✕</button>
+  </div>
+
+  <!-- Voice section -->
+  <div class="settings-section">
+    <div class="settings-section-title">🎙️ Voice</div>
+
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Voice Conversation</div>
+        <div class="settings-sublabel">Auto-listen after ROBOTI speaks</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-convo" onchange="saveSettings()">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Auto Voice Reply</div>
+        <div class="settings-sublabel">Speak all responses aloud</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-tts" onchange="saveSettings()">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+
+    <div>
+      <div class="settings-label" style="margin-bottom:4px">Voice</div>
+      <select class="settings-select" id="voice-select" onchange="saveSettings()">
+        <option value="">Loading voices…</option>
+      </select>
+    </div>
+
+    <div style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:4px">
+        <span>Speed</span><span id="speed-label" style="color:var(--text-muted)">1×</span>
+      </div>
+      <input class="settings-range" type="range" id="speed-range" min="0.5" max="2" step="0.1" value="1" oninput="updateSpeedLabel(this.value)" onchange="saveSettings()">
+    </div>
+
+    <button class="settings-preview-btn" onclick="previewVoice()">▶ Preview voice</button>
+  </div>
+
+  <!-- Integrations section -->
+  <div class="settings-section">
+    <div class="settings-section-title">🔌 Integrations</div>
+    <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:14px">Give ROBOTI real-world context for smarter answers.</p>
+
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Date &amp; Time</div>
+        <div class="integration-status active" id="datetime-status">Always active</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-datetime" checked onchange="saveSettings()">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+
+    <div class="settings-row" style="margin-top:6px">
+      <div>
+        <div class="settings-label">Live Weather</div>
+        <div class="integration-status" id="weather-status">Off</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-weather" onchange="toggleWeather(this.checked)">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-section" id="account-section">
+    <div class="settings-section-title">👤 Account</div>
+
+    <div style="margin-bottom:16px">
+      <div class="settings-label" style="margin-bottom:8px">Change Username</div>
+      <input class="auth-input" id="new-username" type="text" placeholder="New username" style="margin-bottom:8px;font-size:13px;padding:9px 12px" />
+      <button class="auth-btn" style="padding:9px;font-size:13px" onclick="changeUsername()">Update Username</button>
+      <p id="username-change-msg" style="font-size:12px;margin-top:6px;display:none"></p>
+    </div>
+
+    <div id="change-pw-section" style="border-top:1px solid var(--border);padding-top:16px">
+      <div class="settings-label" style="margin-bottom:8px">Change Password</div>
+      <input class="auth-input" id="current-password" type="password" placeholder="Current password" style="margin-bottom:8px;font-size:13px;padding:9px 12px" />
+      <input class="auth-input" id="new-password" type="password" placeholder="New password" style="margin-bottom:8px;font-size:13px;padding:9px 12px" />
+      <input class="auth-input" id="confirm-new-password" type="password" placeholder="Confirm new password" style="margin-bottom:8px;font-size:13px;padding:9px 12px" />
+      <button class="auth-btn" style="padding:9px;font-size:13px" onclick="changePassword()">Update Password</button>
+      <p id="password-change-msg" style="font-size:12px;margin-top:6px;display:none"></p>
+    </div>
+    <p id="google-pw-note" style="display:none;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:14px;margin-top:4px">🔒 Your password is managed by Google.</p>
+  </div>
+</div>
+
+<!-- ── Main app ────────────────────────────────────────────── -->
+<header>
+  <div class="logo">✦</div>
+  <h1>ROBOTI</h1>
+  <span class="model-tag">llama-3.3-70b</span>
+
+  <div id="convo-indicator">
+    <div class="convo-dot"></div>
+    Voice mode
+  </div>
+
+  <div class="header-right">
+    <div id="user-pill" style="display:none">
+      <div class="user-avatar" id="user-avatar"></div>
+      <span id="username-label"></span>
+    </div>
+    <button class="icon-header-btn" onclick="openSettings()" title="Settings">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+    <button class="header-btn" onclick="clearChat()">Clear</button>
+    <button id="signout-btn" onclick="signOut()" style="display:none" class="header-btn">Sign out</button>
+  </div>
+</header>
+
+<div id="chat">
+  <div class="empty-state" id="empty-state">
+    <div class="icon">✦</div>
+    <h2 id="welcome-msg">How can I help you?</h2>
+    <p>Ask anything — or tap 🎤 for a voice conversation.</p>
+    <div class="suggestions">
+      <button class="suggestion-btn" onclick="sendSuggestion('What\'s the weather like?')">Weather</button>
+      <button class="suggestion-btn" onclick="sendSuggestion('Explain quantum computing simply')">Explain something</button>
+      <button class="suggestion-btn" onclick="sendSuggestion('Write a short poem')">Write a poem</button>
+      <button class="suggestion-btn" onclick="sendSuggestion('What are 5 productivity tips?')">Productivity tips</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="input-row">
+    <textarea id="user-input" placeholder="Message ROBOTI or tap 🎤 to speak…" rows="1" autocomplete="off" spellcheck="true"></textarea>
+    <button id="mic-btn" class="icon-btn" onclick="toggleMic()" title="Voice input">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+    </button>
+    <button id="send-btn" class="icon-btn" onclick="sendMessage()" title="Send (Enter)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"/>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      </svg>
+    </button>
+  </div>
+  <p class="hint">Enter to send &nbsp;·&nbsp; Shift+Enter for newline &nbsp;·&nbsp; 🎤 voice</p>
+</footer>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+const chatEl      = document.getElementById('chat');
+const inputEl     = document.getElementById('user-input');
+const sendBtn     = document.getElementById('send-btn');
+const micBtn      = document.getElementById('mic-btn');
+const emptyState  = document.getElementById('empty-state');
+const authOverlay = document.getElementById('auth-overlay');
+const convoIndicator = document.getElementById('convo-indicator');
+
+let messages    = [];
+let isStreaming = false;
+let currentUser = null;
+let currentTab  = 'login';
+let recognition = null;
+let isListening = false;
+let weatherData = null;
+let voicesList  = [];
+
+// ── Settings ───────────────────────────────────────────────────
+const S = {
+  get convoMode()  { return document.getElementById('toggle-convo').checked; },
+  get ttsEnabled() { return document.getElementById('toggle-tts').checked; },
+  get voice()      { return document.getElementById('voice-select').value; },
+  get speed()      { return parseFloat(document.getElementById('speed-range').value); },
+  get datetime()   { return document.getElementById('toggle-datetime').checked; },
+  get weather()    { return document.getElementById('toggle-weather').checked; },
+};
+
+function saveSettings() {
+  localStorage.setItem('roboti_settings', JSON.stringify({
+    convoMode: S.convoMode, ttsEnabled: S.ttsEnabled,
+    voice: S.voice, speed: S.speed, datetime: S.datetime, weather: S.weather,
+  }));
+  // sync header voice button visual
+  if (S.ttsEnabled || S.convoMode) {
+    convoIndicator.classList.toggle('visible', S.convoMode);
+  } else {
+    convoIndicator.classList.remove('visible');
+  }
+}
+
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('roboti_settings') || '{}');
+    if (s.convoMode  != null) document.getElementById('toggle-convo').checked    = s.convoMode;
+    if (s.ttsEnabled != null) document.getElementById('toggle-tts').checked      = s.ttsEnabled;
+    if (s.speed      != null) { document.getElementById('speed-range').value = s.speed; updateSpeedLabel(s.speed); }
+    if (s.datetime   != null) document.getElementById('toggle-datetime').checked = s.datetime;
+    if (s.weather    != null) document.getElementById('toggle-weather').checked  = s.weather;
+    if (s.convoMode) convoIndicator.classList.add('visible');
+    if (s.weather)   fetchWeather();
+    // voice loaded after voices populate
+  } catch {}
+}
+
+function updateSpeedLabel(v) {
+  document.getElementById('speed-label').textContent = parseFloat(v).toFixed(1) + '×';
+}
+
+// ── Settings panel ─────────────────────────────────────────────
+function openSettings()  {
+  document.getElementById('settings-panel').classList.add('open');
+  document.getElementById('settings-backdrop').classList.add('visible');
+}
+function closeSettings() {
+  document.getElementById('settings-panel').classList.remove('open');
+  document.getElementById('settings-backdrop').classList.remove('visible');
+}
+
+// ── Voices ─────────────────────────────────────────────────────
+function populateVoices() {
+  voicesList = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
+  if (!voicesList.length) return;
+
+  const sel = document.getElementById('voice-select');
+  const saved = JSON.parse(localStorage.getItem('roboti_settings') || '{}').voice || '';
+
+  sel.innerHTML = '';
+  const female = voicesList.filter(v => /female|woman|girl|samantha|karen|moira|fiona|tessa|ava|victoria|allison|susan|zira|siri|nicky|serena|kate|hazel|aria|jenny|michelle|amy|veena|alice|anna|laura|joanna|kendra|kimberly|salli|ivy|helen|grace|claire|emily|olivia|sarah|catherine|charlotte|lydia|sandy|melina|damayanti|angelica|paulina|carmit|yuna|lekha|sin-ji|sinji|mei-jia|meijia|zosia|ioana|milena|mariska/i.test(v.name));
+  const male   = voicesList.filter(v => !female.includes(v));
+
+  const addGroup = (label, list) => {
+    if (!list.length) return;
+    const g = document.createElement('optgroup');
+    g.label = label;
+    list.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v.name;
+      o.textContent = v.name.replace(/\s*\(.*\)/, '');
+      if (v.name === saved) o.selected = true;
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  };
+
+  addGroup('Female voices', female);
+  addGroup('Male voices', male);
+}
+
+speechSynthesis.onvoiceschanged = populateVoices;
+populateVoices();
+
+function previewVoice() {
+  speak("Hey there! I'm ROBOTI, your AI assistant. How can I help you today?");
+}
+
+// ── Account changes ────────────────────────────────────────────
+async function changeUsername() {
+  const newUsername = document.getElementById('new-username').value.trim();
+  const msgEl = document.getElementById('username-change-msg');
+  msgEl.style.display = 'none';
+
+  if (!newUsername) { showAccountMsg(msgEl, 'Please enter a new username.', false); return; }
+  if (newUsername.length < 3 || newUsername.length > 20) { showAccountMsg(msgEl, 'Username must be 3–20 characters.', false); return; }
+  if (!/^[a-z0-9_.]+$/i.test(newUsername)) { showAccountMsg(msgEl, 'Only letters, numbers, underscores, and periods allowed.', false); return; }
+
+  const res  = await fetch('/api/change-username', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ newUsername }) });
+  const data = await res.json();
+  if (!res.ok) { showAccountMsg(msgEl, data.error, false); return; }
+  document.getElementById('username-label').textContent = data.username;
+  document.getElementById('user-avatar').textContent   = data.username[0].toUpperCase();
+  document.getElementById('welcome-msg').textContent   = `Hey ${data.username}, how can I help?`;
+  document.getElementById('new-username').value = '';
+  showAccountMsg(msgEl, 'Username updated!', true);
+}
+
+async function changePassword() {
+  const currentPw  = document.getElementById('current-password').value;
+  const newPw      = document.getElementById('new-password').value;
+  const confirmPw  = document.getElementById('confirm-new-password').value;
+  const msgEl      = document.getElementById('password-change-msg');
+
+  if (!currentPw || !newPw || !confirmPw) { showAccountMsg(msgEl, 'Please fill in all fields.', false); return; }
+  if (newPw.length < 8) { showAccountMsg(msgEl, 'New password must be at least 8 characters.', false); return; }
+  if (!/[A-Z]/.test(newPw)) { showAccountMsg(msgEl, 'New password must contain an uppercase letter.', false); return; }
+  if (!/[a-z]/.test(newPw)) { showAccountMsg(msgEl, 'New password must contain a lowercase letter.', false); return; }
+  if (!/[0-9]/.test(newPw)) { showAccountMsg(msgEl, 'New password must contain a number.', false); return; }
+  if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;'`~/]/.test(newPw)) { showAccountMsg(msgEl, 'New password must contain a special character.', false); return; }
+  if (newPw !== confirmPw) { showAccountMsg(msgEl, 'Passwords do not match.', false); return; }
+
+  const res  = await fetch('/api/change-password', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }) });
+  const data = await res.json();
+  if (!res.ok) { showAccountMsg(msgEl, data.error, false); return; }
+  document.getElementById('current-password').value  = '';
+  document.getElementById('new-password').value      = '';
+  document.getElementById('confirm-new-password').value = '';
+  showAccountMsg(msgEl, 'Password updated!', true);
+}
+
+function showAccountMsg(el, text, success) {
+  el.textContent = text;
+  el.style.color = success ? 'var(--green)' : 'var(--red)';
+  el.style.display = 'block';
+}
+
+// ── TTS ────────────────────────────────────────────────────────
+function speak(text, onEnd) {
+  if (!S.ttsEnabled && !S.convoMode) { onEnd?.(); return; }
+  speechSynthesis.cancel();
+
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.rate  = S.speed;
+  const chosenVoice = voicesList.find(v => v.name === S.voice);
+  if (chosenVoice) utt.voice = chosenVoice;
+
+  utt.onend = () => {
+    onEnd?.();
+    if (S.convoMode && !isStreaming) {
+      setTimeout(() => toggleMic(), 500);
+    }
+  };
+
+  speechSynthesis.speak(utt);
+}
+
+// ── STT ────────────────────────────────────────────────────────
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function toggleMic() {
+  if (!SpeechRecognition) { alert('Speech recognition not supported. Try Chrome or Edge.'); return; }
+  if (isListening) { recognition?.stop(); return; }
+
+  recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.interimResults = true;
+  recognition.continuous = false;
+
+  recognition.onstart = () => {
+    isListening = true;
+    micBtn.classList.add('listening');
+    inputEl.placeholder = 'Listening…';
+  };
+
+  recognition.onresult = (e) => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    inputEl.value = transcript;
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 130) + 'px';
+    if (e.results[e.results.length - 1].isFinal) {
+      recognition.stop();
+      setTimeout(() => sendMessage(), 300);
+    }
+  };
+
+  recognition.onerror = () => stopListening();
+  recognition.onend   = () => stopListening();
+  recognition.start();
+}
+
+function stopListening() {
+  isListening = false;
+  micBtn.classList.remove('listening');
+  inputEl.placeholder = 'Message ROBOTI or tap 🎤 to speak…';
+}
+
+// ── Weather integration ────────────────────────────────────────
+async function fetchWeather() {
+  const statusEl = document.getElementById('weather-status');
+  statusEl.textContent = 'Detecting location…';
+  statusEl.className = 'integration-status';
+
+  try {
+    const pos = await new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 })
+    );
+    const { latitude: lat, longitude: lon } = pos.coords;
+
+    const [weatherRes, geoRes] = await Promise.all([
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,wind_speed_10m&temperature_unit=fahrenheit`),
+      fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`),
+    ]);
+
+    const weatherJson = await weatherRes.json();
+    const geoJson     = await geoRes.json();
+
+    const temp    = Math.round(weatherJson.current.temperature_2m);
+    const wind    = Math.round(weatherJson.current.wind_speed_10m);
+    const city    = geoJson.address?.city || geoJson.address?.town || geoJson.address?.village || 'your area';
+    const codeMap = { 0:'Clear sky', 1:'Mostly clear', 2:'Partly cloudy', 3:'Overcast', 45:'Foggy', 48:'Icy fog', 51:'Light drizzle', 61:'Light rain', 71:'Light snow', 80:'Showers', 95:'Thunderstorm' };
+    const desc    = codeMap[weatherJson.current.weathercode] || 'Variable';
+
+    weatherData = `${desc}, ${temp}°F, wind ${wind} mph in ${city}`;
+    statusEl.textContent = `✓ ${weatherData}`;
+    statusEl.className = 'integration-status active';
+  } catch (e) {
+    weatherData = null;
+    statusEl.textContent = e.code === 1 ? 'Location access denied' : 'Failed to fetch';
+    statusEl.className = 'integration-status';
+    document.getElementById('toggle-weather').checked = false;
+  }
+}
+
+function toggleWeather(enabled) {
+  saveSettings();
+  if (enabled) fetchWeather();
+  else {
+    weatherData = null;
+    document.getElementById('weather-status').textContent = 'Off';
+    document.getElementById('weather-status').className = 'integration-status';
+  }
+}
+
+// ── Build context for API ──────────────────────────────────────
+function buildContext() {
+  const ctx = {};
+  if (S.datetime) {
+    ctx.datetime = new Date().toLocaleString('en-US', {
+      weekday:'long', year:'numeric', month:'long', day:'numeric',
+      hour:'2-digit', minute:'2-digit', timeZoneName:'short'
+    });
+  }
+  if (S.weather && weatherData) ctx.weather = weatherData;
+  return ctx;
+}
+
+// ── Auth ───────────────────────────────────────────────────────
+let currentAuthType = 'password';
+
+async function checkSession() {
+  const res  = await fetch('/api/me');
+  const data = await res.json();
+  if (data.username) showApp(data.username, data.auth_type);
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.auth-tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0) === (tab === 'login'));
+  });
+  document.getElementById('auth-submit').textContent = tab === 'login' ? 'Sign In' : 'Create Account';
+  document.getElementById('auth-password').autocomplete = tab === 'login' ? 'current-password' : 'new-password';
+  document.getElementById('auth-error').textContent = '';
+  document.getElementById('confirm-password-wrap').style.display = tab === 'register' ? 'block' : 'none';
+  document.getElementById('auth-confirm-password').value = '';
+}
+
+async function submitAuth() {
+  const username = document.getElementById('auth-username').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const errorEl  = document.getElementById('auth-error');
+  const btn      = document.getElementById('auth-submit');
+
+  if (!username || !password) { errorEl.textContent = 'Please fill in all fields.'; return; }
+  if (currentTab === 'register') {
+    if (username.length < 3 || username.length > 20) { errorEl.textContent = 'Username must be 3–20 characters.'; return; }
+    if (!/^[a-z0-9_.]+$/i.test(username)) { errorEl.textContent = 'Username may only contain letters, numbers, underscores, and periods.'; return; }
+    if (password.length < 8) { errorEl.textContent = 'Password must be at least 8 characters.'; return; }
+    if (!/[A-Z]/.test(password)) { errorEl.textContent = 'Password must contain at least one uppercase letter.'; return; }
+    if (!/[a-z]/.test(password)) { errorEl.textContent = 'Password must contain at least one lowercase letter.'; return; }
+    if (!/[0-9]/.test(password)) { errorEl.textContent = 'Password must contain at least one number.'; return; }
+    if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;'`~/]/.test(password)) { errorEl.textContent = 'Password must contain at least one special character (e.g. !, @, #, $).'; return; }
+    const confirm = document.getElementById('auth-confirm-password').value;
+    if (!confirm) { errorEl.textContent = 'Please confirm your password.'; return; }
+    if (password !== confirm) { errorEl.textContent = 'Passwords do not match.'; return; }
+  }
+  btn.disabled = true;
+  errorEl.textContent = '';
+
+  try {
+    const res  = await fetch(currentTab === 'login' ? '/api/login' : '/api/register', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errorEl.textContent = data.error; return; }
+    showApp(data.username, 'password');
+  } catch { errorEl.textContent = 'Network error. Is the server running?'; }
+  finally  { btn.disabled = false; }
+}
+
+async function continueAsGuest() {
+  const res  = await fetch('/api/guest', { method: 'POST' });
+  const data = await res.json();
+  showApp(data.username, 'guest');
+}
+
+function showApp(username, authType) {
+  currentUser = username;
+  currentAuthType = authType || 'password';
+  authOverlay.classList.add('hidden');
+  document.getElementById('user-pill').style.display     = 'flex';
+  document.getElementById('signout-btn').style.display   = '';
+  document.getElementById('username-label').textContent  = username;
+  document.getElementById('user-avatar').textContent     = username[0].toUpperCase();
+  document.getElementById('welcome-msg').textContent     = `Hey ${username}, how can I help?`;
+  const isGoogle  = currentAuthType === 'google';
+  const isGuest   = currentAuthType === 'guest';
+  document.getElementById('change-pw-section').style.display  = (isGoogle || isGuest) ? 'none' : 'block';
+  document.getElementById('google-pw-note').style.display     = isGoogle ? 'block' : 'none';
+  document.getElementById('account-section').style.display    = isGuest  ? 'none'  : 'block';
+  inputEl.focus();
+}
+
+async function signOut() {
+  await fetch('/api/logout', { method: 'POST' });
+  currentUser = null;
+  authOverlay.classList.remove('hidden');
+  document.getElementById('user-pill').style.display   = 'none';
+  document.getElementById('signout-btn').style.display = 'none';
+  document.getElementById('auth-username').value = '';
+  document.getElementById('auth-password').value = '';
+  document.getElementById('auth-confirm-password').value = '';
+  document.getElementById('confirm-password-wrap').style.display = 'none';
+  document.getElementById('auth-error').textContent = '';
+  clearChat();
+}
+
+function togglePasswordVisibility(inputId, iconId) {
+  const input = document.getElementById(inputId);
+  const icon  = document.getElementById(iconId);
+  const show  = input.type === 'password';
+  input.type  = show ? 'text' : 'password';
+  icon.innerHTML = show
+    ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+}
+
+document.getElementById('auth-username').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('auth-password').focus(); });
+document.getElementById('auth-password').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
+
+// ── Chat ───────────────────────────────────────────────────────
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 130) + 'px';
+});
+inputEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+function sendSuggestion(text) { inputEl.value = text; sendMessage(); }
+
+function clearChat() {
+  messages = [];
+  chatEl.querySelectorAll('.message').forEach(m => m.remove());
+  emptyState.style.display = 'flex';
+  speechSynthesis.cancel();
+}
+
+function appendMessage(role, text = '') {
+  emptyState.style.display = 'none';
+  const msg    = document.createElement('div');
+  msg.className = `message ${role}`;
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  avatar.textContent = role === 'user' ? (currentUser ? currentUser[0].toUpperCase() : 'U') : '✦';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  msg.appendChild(avatar);
+  msg.appendChild(bubble);
+  chatEl.appendChild(msg);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  return bubble;
+}
+
+async function sendMessage() {
+  const text = inputEl.value.trim();
+  if (!text || isStreaming) return;
+
+  speechSynthesis.cancel();
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+  isStreaming = true;
+  sendBtn.disabled = true;
+  micBtn.disabled  = true;
+
+  messages.push({ role: 'user', content: text });
+  appendMessage('user', text);
+
+  const bubble = appendMessage('assistant', '');
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor';
+  bubble.appendChild(cursor);
+
+  let assistantText = '';
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ messages, context: buildContext() }),
+    });
+
+    if (res.status === 401) {
+      bubble.textContent = 'Session expired. Please sign in again.';
+      setTimeout(() => signOut(), 1500);
+      return;
+    }
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6);
+        if (payload === '[DONE]') continue;
+        try {
+          const { text: chunk, error } = JSON.parse(payload);
+          if (error) { bubble.textContent = `Error: ${error}`; return; }
+          if (chunk) {
+            assistantText += chunk;
+            bubble.textContent = assistantText;
+            bubble.appendChild(cursor);
+            chatEl.scrollTop = chatEl.scrollHeight;
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    bubble.textContent = `Network error: ${err.message}`;
+  } finally {
+    cursor.remove();
+    messages.push({ role: 'assistant', content: assistantText });
+    isStreaming  = false;
+    sendBtn.disabled = false;
+    micBtn.disabled  = false;
+    inputEl.focus();
+    chatEl.scrollTop = chatEl.scrollHeight;
+
+    if (assistantText) {
+      bubble.classList.add('speaking');
+      speak(assistantText, () => bubble.classList.remove('speaking'));
+    }
+  }
+}
+
+// ── OAuth error ────────────────────────────────────────────────
+const oauthError = new URLSearchParams(window.location.search).get('oauth_error');
+if (oauthError) {
+  document.getElementById('oauth-error').textContent = oauthError;
+  document.getElementById('oauth-error').style.display = 'block';
+  history.replaceState({}, '', '/');
+}
+
+// ── Init ───────────────────────────────────────────────────────
+loadSettings();
+checkSession();
+</script>
+</body>
+</html>

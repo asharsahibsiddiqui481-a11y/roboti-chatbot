@@ -513,6 +513,52 @@
     <button class="settings-preview-btn" onclick="previewVoice()">▶ Preview voice</button>
   </div>
 
+  <!-- ElevenLabs section -->
+  <div class="settings-section">
+    <div class="settings-section-title">🎤 ElevenLabs (Human Voices)</div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Get a free API key at <strong style="color:var(--text)">elevenlabs.io</strong> — 10,000 chars/month free. When set, replaces the robotic browser voice.</p>
+
+    <div style="margin-bottom:10px">
+      <div class="settings-label" style="margin-bottom:4px">API Key</div>
+      <div style="position:relative">
+        <input class="auth-input" id="el-api-key" type="password" placeholder="Paste your ElevenLabs API key"
+          style="font-size:12.5px;padding:9px 40px 9px 12px;width:100%"
+          oninput="saveElSettings()" />
+        <button type="button" onclick="togglePasswordVisibility('el-api-key','el-eye')"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);padding:0;display:flex;align-items:center">
+          <svg id="el-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <div class="settings-label" style="margin-bottom:4px">Voice</div>
+      <select class="settings-select" id="el-voice-select" onchange="saveElSettings()">
+        <optgroup label="Female">
+          <option value="21m00Tcm4TlvDq8ikWAM">Rachel — calm, American</option>
+          <option value="EXAVITQu4vr4xnSDxMaL">Bella — soft, American</option>
+          <option value="AZnzlk1XvdvUeBnXmlld">Domi — confident, American</option>
+          <option value="MF3mGyEYCl7XYWbV9V6O">Elli — expressive, American</option>
+          <option value="LcfcDJNUP1GQjkzn1xUU">Emily — warm, American</option>
+          <option value="ThT5KcBeYPX3keUQqHPh">Dorothy — natural, British</option>
+        </optgroup>
+        <optgroup label="Male">
+          <option value="ErXwobaYiN019PkySvjV">Antoni — well-rounded, American</option>
+          <option value="TxGEqnHWrfWFTfGW9XjX">Josh — conversational, American</option>
+          <option value="pNInz6obpgDQGcFmaJgB">Adam — narrative, American</option>
+          <option value="VR6AewLTigWG4xSOukaG">Arnold — crisp, American</option>
+          <option value="CYw3kZ02Hs0563khs1Fj">Dave — casual, British</option>
+          <option value="IKne3meq5aSn9XLyUdCD">Charlie — natural, Australian</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <button class="settings-preview-btn" style="margin-top:10px" onclick="previewElVoice()">▶ Preview ElevenLabs voice</button>
+    <p id="el-status" style="font-size:11.5px;margin-top:6px;display:none"></p>
+  </div>
+
   <!-- Integrations section -->
   <div class="settings-section">
     <div class="settings-section-title">🔌 Integrations</div>
@@ -770,6 +816,7 @@ function loadSettings() {
     if (s.weather)   fetchWeather();
     // voice loaded after voices populate
   } catch {}
+  loadElSettings();
 }
 
 function updateSpeedLabel(v) {
@@ -821,6 +868,62 @@ populateVoices();
 
 function previewVoice() {
   speak("Hey there! I'm ROBOTI, your AI assistant. How can I help you today?");
+}
+
+// ── ElevenLabs settings ────────────────────────────────────────
+function saveElSettings() {
+  localStorage.setItem('roboti_el_key',   document.getElementById('el-api-key').value.trim());
+  localStorage.setItem('roboti_el_voice', document.getElementById('el-voice-select').value);
+}
+
+function loadElSettings() {
+  const key   = localStorage.getItem('roboti_el_key')   || '';
+  const voice = localStorage.getItem('roboti_el_voice') || '21m00Tcm4TlvDq8ikWAM';
+  document.getElementById('el-api-key').value = key;
+  document.getElementById('el-voice-select').value = voice;
+}
+
+async function previewElVoice() {
+  const statusEl = document.getElementById('el-status');
+  statusEl.style.display = 'block';
+  statusEl.style.color = 'var(--text-muted)';
+  statusEl.textContent = 'Loading…';
+  await speakWithElevenLabs("Hey there! I'm ROBOTI. This is what I sound like with ElevenLabs.", () => {
+    statusEl.textContent = '';
+    statusEl.style.display = 'none';
+  }, (err) => {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = err;
+  });
+}
+
+async function speakWithElevenLabs(text, onEnd, onError) {
+  const key     = localStorage.getItem('roboti_el_key')   || '';
+  const voiceId = localStorage.getItem('roboti_el_voice') || '21m00Tcm4TlvDq8ikWAM';
+  if (!key) { onError?.('No ElevenLabs API key set in settings.'); return false; }
+  try {
+    const resp = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice_id: voiceId, api_key: key }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      onError?.(err.error || `Error ${resp.status}`);
+      return false;
+    }
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.playbackRate = S.speed;
+    audio.onended = () => { URL.revokeObjectURL(url); onEnd?.(); if (S.convoMode && !isStreaming) setTimeout(() => toggleMic(), 500); };
+    audio.onerror = () => { URL.revokeObjectURL(url); onError?.('Playback error'); };
+    audio.play();
+    return true;
+  } catch (e) {
+    onError?.(e.message);
+    return false;
+  }
 }
 
 // ── Account changes ────────────────────────────────────────────
@@ -890,15 +993,22 @@ function cleanTextForSpeech(text) {
     .trim();
 }
 
-function speak(text, onEnd) {
+async function speak(text, onEnd) {
   if (!S.ttsEnabled && !S.convoMode) { onEnd?.(); return; }
   speechSynthesis.cancel();
 
   const cleaned = cleanTextForSpeech(text);
+
+  // Use ElevenLabs if API key is set
+  if (localStorage.getItem('roboti_el_key')) {
+    const ok = await speakWithElevenLabs(cleaned, onEnd);
+    if (ok) return;
+    // fall through to browser TTS if ElevenLabs failed
+  }
+
   const chosenVoice = voicesList.find(v => v.name === S.voice);
   const isFemale = chosenVoice && /female|woman|girl|samantha|karen|moira|fiona|tessa|ava|victoria|allison|susan|zira|siri|nicky|serena|kate|hazel|aria|jenny|michelle|amy|veena|alice|anna|laura|joanna|kendra|kimberly|salli|ivy|helen|grace|claire|emily|olivia|sarah|catherine|charlotte|lydia/i.test(chosenVoice.name);
 
-  // Split into sentences so long responses don't get cut off (Chrome bug)
   const sentences = cleaned.match(/[^.!?]+[.!?]+/g) || [cleaned];
   let i = 0;
 

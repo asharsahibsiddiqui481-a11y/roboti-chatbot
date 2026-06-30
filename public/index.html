@@ -739,6 +739,11 @@
       <p id="password-change-msg" style="font-size:12px;margin-top:6px;display:none"></p>
     </div>
     <p id="google-pw-note" style="display:none;font-size:12px;color:var(--text-muted);border-top:1px solid var(--border);padding-top:14px;margin-top:4px">🔒 Your password is managed by Google.</p>
+
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px;display:flex;flex-direction:column;gap:8px">
+      <button class="auth-btn" style="padding:9px;font-size:13px;background:var(--surface);color:var(--text);border:1px solid var(--border)" onclick="signOut()">Sign Out</button>
+      <button class="auth-btn" style="padding:9px;font-size:13px;background:transparent;color:#ef4444;border:1px solid #ef4444" onclick="confirmDeleteAccount()">Delete Account</button>
+    </div>
   </div>
 </div>
 
@@ -770,7 +775,6 @@
     </button>
     <button class="header-btn" onclick="clearChat()">Clear</button>
     <button class="header-btn" onclick="openPricing()" id="plans-btn" style="display:none;color:var(--accent);border-color:var(--accent)">Plans</button>
-    <button id="signout-btn" onclick="signOut()" style="display:none" class="header-btn">Sign out</button>
   </div>
 </header>
 
@@ -1451,7 +1455,6 @@ function showApp(username, authType) {
   currentAuthType = authType || 'password';
   authOverlay.classList.add('hidden');
   document.getElementById('user-pill').style.display     = 'flex';
-  document.getElementById('signout-btn').style.display   = '';
   document.getElementById('username-label').textContent  = username;
   document.getElementById('user-avatar').textContent     = username[0].toUpperCase();
   document.getElementById('welcome-msg').textContent     = `Hey ${username}, how can I help?`;
@@ -1486,15 +1489,27 @@ function showApp(username, authType) {
 async function signOut() {
   await fetch('/api/logout', { method: 'POST' });
   currentUser = null;
+  closeSettings();
   authOverlay.classList.remove('hidden');
-  document.getElementById('user-pill').style.display   = 'none';
-  document.getElementById('signout-btn').style.display = 'none';
+  document.getElementById('user-pill').style.display = 'none';
   document.getElementById('auth-username').value = '';
   document.getElementById('auth-password').value = '';
   document.getElementById('auth-confirm-password').value = '';
   document.getElementById('confirm-password-wrap').style.display = 'none';
   document.getElementById('auth-error').textContent = '';
   clearChat();
+}
+
+async function confirmDeleteAccount() {
+  if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) return;
+  const res  = await fetch('/api/delete-account', { method: 'POST' });
+  const data = await res.json();
+  if (res.ok) {
+    alert('Account deleted.');
+    signOut();
+  } else {
+    alert(data.error || 'Failed to delete account.');
+  }
 }
 
 function togglePasswordVisibility(inputId, iconId) {

@@ -231,6 +231,25 @@ def logout():
     return jsonify({'ok': True})
 
 
+@app.post('/api/delete-account')
+def delete_account():
+    username = session.get('username')
+    if not username:
+        return jsonify({'error': 'Not logged in.'}), 401
+    if session.get('auth_type') == 'guest':
+        return jsonify({'error': 'Guests do not have an account to delete.'}), 400
+    users = load_users()
+    if username in users:
+        del users[username]
+        save_users(users)
+    subs = load_subs()
+    if username in subs:
+        del subs[username]
+        save_subs(subs)
+    session.clear()
+    return jsonify({'ok': True})
+
+
 @app.get('/api/me')
 def me():
     if 'username' in session:

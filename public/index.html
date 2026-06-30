@@ -706,7 +706,7 @@
   </div>
 
   <!-- Subscription section -->
-  <div class="settings-section">
+  <div class="settings-section" id="subscription-section">
     <div class="settings-section-title">💳 Subscription</div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div>
@@ -882,6 +882,7 @@ function updateUpgradeBanner() {
 }
 
 function openPricing() {
+  if (currentAuthType === 'guest') { alert('Create a free account to subscribe.'); return; }
   updatePricingUI();
   document.getElementById('pricing-backdrop').classList.add('open');
 }
@@ -1465,8 +1466,9 @@ function showApp(username, authType) {
   document.getElementById('change-pw-section').style.display  = (isGoogle || isGuest) ? 'none' : 'block';
   document.getElementById('google-pw-note').style.display     = isGoogle ? 'block' : 'none';
   document.getElementById('account-section').style.display    = isGuest  ? 'none'  : 'block';
-  document.getElementById('sessions-btn').style.display = 'flex';
-  document.getElementById('plans-btn').style.display = '';
+  document.getElementById('sessions-btn').style.display = isGuest ? 'none' : 'flex';
+  document.getElementById('plans-btn').style.display = isGuest ? 'none' : '';
+  document.getElementById('subscription-section').style.display = isGuest ? 'none' : '';
   loadSubscription().then(() => {
     // load sessions only for pro/premium
     if (currentPlan !== 'basic') {

@@ -22,6 +22,7 @@ app.config['SESSION_COOKIE_SECURE'] = False
 
 API_KEY = os.environ.get('GROQ_API_KEY', '')
 client = Groq(api_key=API_KEY) if API_KEY else None
+ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY', '')
 
 USERS_FILE = os.path.join(os.path.dirname(__file__), 'users.json')
 SUBS_FILE  = os.path.join(os.path.dirname(__file__), 'subscriptions.json')
@@ -324,17 +325,18 @@ def chat():
 def tts():
     if 'username' not in session:
         return jsonify({'error': 'Not logged in.'}), 401
+    if not ELEVENLABS_API_KEY:
+        return jsonify({'error': 'ElevenLabs not configured on server.'}), 503
     try:
-        body = request.get_json()
+        body     = request.get_json()
         text     = (body.get('text') or '').strip()[:2500]
         voice_id = body.get('voice_id') or '21m00Tcm4TlvDq8ikWAM'
-        api_key  = (body.get('api_key') or '').strip()
-        if not text or not api_key:
-            return jsonify({'error': 'Missing text or api_key'}), 400
+        if not text:
+            return jsonify({'error': 'Missing text'}), 400
 
         resp = requests.post(
             f'https://api.elevenlabs.io/v1/text-to-speech/{voice_id}',
-            headers={'xi-api-key': api_key, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg'},
+            headers={'xi-api-key': ELEVENLABS_API_KEY, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg'},
             json={'text': text, 'model_id': 'eleven_multilingual_v2', 'voice_settings': {'stability': 0.45, 'similarity_boost': 0.80}},
             timeout=20,
         )

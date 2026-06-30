@@ -430,8 +430,6 @@ def create_checkout():
     )
     if customer_id:
         params['customer'] = customer_id
-    else:
-        params['customer_creation'] = 'always'
 
     checkout = stripe.checkout.Session.create(**params)
     return jsonify({'url': checkout.url})

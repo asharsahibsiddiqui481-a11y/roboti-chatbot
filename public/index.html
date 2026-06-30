@@ -1144,12 +1144,18 @@ async function previewElVoice() {
   statusEl.style.display = 'block';
   statusEl.style.color = 'var(--text-muted)';
   statusEl.textContent = 'Loading…';
-  await speakWithElevenLabs("Hey there! I'm ROBOTI. This is what I sound like with ElevenLabs.", () => {
+  await speakWithElevenLabs("Hey there! I'm Robotee. This is what I sound like!", () => {
     statusEl.textContent = '';
     statusEl.style.display = 'none';
   }, (err) => {
-    statusEl.style.color = 'var(--red)';
-    statusEl.textContent = err;
+    if (err && err.includes('payment_required')) {
+      statusEl.style.display = 'none';
+      closeSettings();
+      openPricing();
+    } else {
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = err;
+    }
   });
 }
 

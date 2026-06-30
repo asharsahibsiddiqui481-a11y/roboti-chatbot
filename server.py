@@ -23,6 +23,7 @@ app.config['SESSION_COOKIE_SECURE'] = False
 API_KEY = os.environ.get('GROQ_API_KEY', '')
 client = Groq(api_key=API_KEY) if API_KEY else None
 ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY', '')
+ADMIN_SECRET = os.environ.get('ADMIN_SECRET', 'roboti-admin-2025')
 
 USERS_FILE = os.path.join(os.path.dirname(__file__), 'users.json')
 SUBS_FILE  = os.path.join(os.path.dirname(__file__), 'subscriptions.json')
@@ -487,6 +488,31 @@ def stripe_webhook():
                 break
 
     return 'ok', 200
+
+
+# ── Admin: grant free subscription ────────────────────────────
+@app.post('/api/admin/grant')
+def admin_grant():
+    import time
+    body   = request.get_json()
+    secret = (body.get('secret') or '').strip()
+    if secret != ADMIN_SECRET:
+        return jsonify({'error': 'Unauthorized'}), 403
+    username = (body.get('username') or '').strip()
+    tier     = (body.get('tier') or 'pro').lower()
+    months   = int(body.get('months') or 12)
+    if not username:
+        return jsonify({'error': 'username required'}), 400
+    if tier not in ('pro', 'premium'):
+        return jsonify({'error': 'tier must be pro or premium'}), 400
+    subs = load_subs()
+    subs[username] = {
+        'tier': tier,
+        'period_end': time.time() + months * 30 * 86400,
+        'granted_by': 'admin',
+    }
+    save_subs(subs)
+    return jsonify({'ok': True, 'username': username, 'tier': tier, 'months': months})
 
 
 if __name__ == '__main__':

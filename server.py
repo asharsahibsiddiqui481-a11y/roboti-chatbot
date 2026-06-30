@@ -333,7 +333,7 @@ def tts():
     resp = requests.post(
         f'https://api.elevenlabs.io/v1/text-to-speech/{voice_id}',
         headers={'xi-api-key': api_key, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg'},
-        json={'text': text, 'model_id': 'eleven_turbo_v2_5', 'voice_settings': {'stability': 0.45, 'similarity_boost': 0.80}},
+        json={'text': text, 'model_id': 'eleven_multilingual_v2', 'voice_settings': {'stability': 0.45, 'similarity_boost': 0.80}},
         timeout=20,
     )
     if resp.status_code != 200:

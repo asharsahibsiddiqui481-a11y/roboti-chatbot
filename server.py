@@ -320,6 +320,20 @@ def chat():
     return Response(stream(), mimetype='text/event-stream')
 
 
+# ── ElevenLabs voices list ─────────────────────────────────────
+@app.get('/api/el-voices')
+def el_voices():
+    if not ELEVENLABS_API_KEY:
+        return jsonify({'voices': []}), 200
+    try:
+        r = requests.get('https://api.elevenlabs.io/v1/voices',
+                         headers={'xi-api-key': ELEVENLABS_API_KEY}, timeout=10)
+        voices = r.json().get('voices', [])
+        return jsonify({'voices': [{'id': v['voice_id'], 'name': v['name']} for v in voices]})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # ── ElevenLabs TTS proxy ───────────────────────────────────────
 @app.post('/api/tts')
 def tts():

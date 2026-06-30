@@ -647,22 +647,7 @@
     <div>
       <div class="settings-label" style="margin-bottom:4px">Voice</div>
       <select class="settings-select" id="el-voice-select" onchange="saveElSettings()">
-        <optgroup label="Female">
-          <option value="21m00Tcm4TlvDq8ikWAM">Rachel — calm, American</option>
-          <option value="EXAVITQu4vr4xnSDxMaL">Bella — soft, American</option>
-          <option value="AZnzlk1XvdvUeBnXmlld">Domi — confident, American</option>
-          <option value="MF3mGyEYCl7XYWbV9V6O">Elli — expressive, American</option>
-          <option value="LcfcDJNUP1GQjkzn1xUU">Emily — warm, American</option>
-          <option value="ThT5KcBeYPX3keUQqHPh">Dorothy — natural, British</option>
-        </optgroup>
-        <optgroup label="Male">
-          <option value="ErXwobaYiN019PkySvjV">Antoni — well-rounded, American</option>
-          <option value="TxGEqnHWrfWFTfGW9XjX">Josh — conversational, American</option>
-          <option value="pNInz6obpgDQGcFmaJgB">Adam — narrative, American</option>
-          <option value="VR6AewLTigWG4xSOukaG">Arnold — crisp, American</option>
-          <option value="CYw3kZ02Hs0563khs1Fj">Dave — casual, British</option>
-          <option value="IKne3meq5aSn9XLyUdCD">Charlie — natural, Australian</option>
-        </optgroup>
+        <option value="">Loading voices…</option>
       </select>
     </div>
 
@@ -1115,8 +1100,26 @@ function saveElSettings() {
 }
 
 function loadElSettings() {
-  const voice = localStorage.getItem('roboti_el_voice') || '21m00Tcm4TlvDq8ikWAM';
-  document.getElementById('el-voice-select').value = voice;
+  loadElVoices();
+}
+
+async function loadElVoices() {
+  const sel = document.getElementById('el-voice-select');
+  const saved = localStorage.getItem('roboti_el_voice') || '';
+  try {
+    const r = await fetch('/api/el-voices');
+    const data = await r.json();
+    const voices = data.voices || [];
+    if (!voices.length) { sel.innerHTML = '<option value="">No voices found</option>'; return; }
+    sel.innerHTML = voices.map(v =>
+      `<option value="${v.id}"${v.id === saved ? ' selected' : ''}>${v.name}</option>`
+    ).join('');
+    if (!saved && voices.length) {
+      localStorage.setItem('roboti_el_voice', voices[0].id);
+    }
+  } catch (e) {
+    sel.innerHTML = '<option value="">Could not load voices</option>';
+  }
 }
 
 async function previewElVoice() {

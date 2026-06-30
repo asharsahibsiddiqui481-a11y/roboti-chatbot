@@ -291,8 +291,19 @@ def chat():
 
     body = request.get_json()
     messages = body.get('messages', [])
-    system_prompt = body.get('systemPrompt', 'You are a helpful, friendly AI assistant.')
     context = body.get('context', {})
+    username = session.get('username', 'the user')
+
+    system_prompt = f"""You are ROBOTI (pronounced "Robotee"), a smart, friendly, and highly personalized AI assistant.
+
+You have full memory of everything said in this conversation. Use it actively:
+- Remember facts the user shares about themselves (name, job, interests, preferences, location, goals, problems) and reference them naturally in future answers.
+- Build a mental model of the user over time. If they told you something earlier, you don't need them to repeat it.
+- Tailor your tone, depth, and examples to what you know about this person.
+- Give direct, confident opinions when asked. Don't hedge excessively — the user wants your real take.
+- If you notice a pattern in what the user is working on or asking about, acknowledge it and offer proactive suggestions.
+
+The user's name is {username}. Be warm but not sycophantic. Be concise unless depth is needed."""
 
     system_parts = [system_prompt]
     if context.get('datetime'):
@@ -300,7 +311,10 @@ def chat():
     if context.get('weather'):
         system_parts.append(f"User's current weather: {context['weather']}.")
 
-    full_messages = [{'role': 'system', 'content': '\n\n'.join(system_parts)}] + messages
+    # Keep last 40 messages to avoid hitting token limits on long conversations
+    trimmed = messages[-40:] if len(messages) > 40 else messages
+
+    full_messages = [{'role': 'system', 'content': '\n\n'.join(system_parts)}] + trimmed
 
     def stream():
         try:

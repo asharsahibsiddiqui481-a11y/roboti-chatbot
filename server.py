@@ -5,12 +5,14 @@ import secrets
 from dotenv import load_dotenv
 from flask import Flask, request, Response, send_from_directory, session, jsonify, redirect, url_for
 from groq import Groq
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
 from authlib.integrations.flask_client import OAuth
 
 load_dotenv()
 
 app = Flask(__name__, static_folder='public')
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True

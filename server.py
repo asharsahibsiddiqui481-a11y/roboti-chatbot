@@ -323,22 +323,25 @@ def chat():
 def tts():
     if 'username' not in session:
         return jsonify({'error': 'Not logged in.'}), 401
-    body = request.get_json()
-    text     = (body.get('text') or '').strip()[:2500]
-    voice_id = body.get('voice_id') or '21m00Tcm4TlvDq8ikWAM'
-    api_key  = (body.get('api_key') or '').strip()
-    if not text or not api_key:
-        return jsonify({'error': 'Missing text or api_key'}), 400
+    try:
+        body = request.get_json()
+        text     = (body.get('text') or '').strip()[:2500]
+        voice_id = body.get('voice_id') or '21m00Tcm4TlvDq8ikWAM'
+        api_key  = (body.get('api_key') or '').strip()
+        if not text or not api_key:
+            return jsonify({'error': 'Missing text or api_key'}), 400
 
-    resp = requests.post(
-        f'https://api.elevenlabs.io/v1/text-to-speech/{voice_id}',
-        headers={'xi-api-key': api_key, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg'},
-        json={'text': text, 'model_id': 'eleven_multilingual_v2', 'voice_settings': {'stability': 0.45, 'similarity_boost': 0.80}},
-        timeout=20,
-    )
-    if resp.status_code != 200:
-        return jsonify({'error': f'ElevenLabs error {resp.status_code}'}), 502
-    return Response(resp.content, mimetype='audio/mpeg')
+        resp = requests.post(
+            f'https://api.elevenlabs.io/v1/text-to-speech/{voice_id}',
+            headers={'xi-api-key': api_key, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg'},
+            json={'text': text, 'model_id': 'eleven_multilingual_v2', 'voice_settings': {'stability': 0.45, 'similarity_boost': 0.80}},
+            timeout=20,
+        )
+        if resp.status_code != 200:
+            return jsonify({'error': f'ElevenLabs {resp.status_code}: {resp.text[:200]}'}), 502
+        return Response(resp.content, mimetype='audio/mpeg')
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # ── Subscription endpoints ─────────────────────────────────────

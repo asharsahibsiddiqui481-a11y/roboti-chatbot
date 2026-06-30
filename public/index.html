@@ -1055,7 +1055,6 @@ function renderSessionList() {
 const S = {
   get convoMode()  { return document.getElementById('toggle-convo').checked; },
   get ttsEnabled() { return document.getElementById('toggle-tts').checked; },
-  get voice()      { return document.getElementById('voice-select').value; },
   get speed()      { return parseFloat(document.getElementById('speed-range').value); },
   get datetime()   { return document.getElementById('toggle-datetime').checked; },
   get weather()    { return document.getElementById('toggle-weather').checked; },
@@ -1064,7 +1063,7 @@ const S = {
 function saveSettings() {
   localStorage.setItem('roboti_settings', JSON.stringify({
     convoMode: S.convoMode, ttsEnabled: S.ttsEnabled,
-    voice: S.voice, speed: S.speed, datetime: S.datetime, weather: S.weather,
+    speed: S.speed, datetime: S.datetime, weather: S.weather,
   }));
   // sync header voice button visual
   if (S.ttsEnabled || S.convoMode) {
@@ -1103,42 +1102,12 @@ function closeSettings() {
   document.getElementById('settings-backdrop').classList.remove('visible');
 }
 
-// ── Voices ─────────────────────────────────────────────────────
+// ── Voices (browser fallback only) ─────────────────────────────
 function populateVoices() {
   voicesList = speechSynthesis.getVoices().filter(v => v.lang.startsWith('en'));
-  if (!voicesList.length) return;
-
-  const sel = document.getElementById('voice-select');
-  const saved = JSON.parse(localStorage.getItem('roboti_settings') || '{}').voice || '';
-
-  sel.innerHTML = '';
-  const female = voicesList.filter(v => /female|woman|girl|samantha|karen|moira|fiona|tessa|ava|victoria|allison|susan|zira|siri|nicky|serena|kate|hazel|aria|jenny|michelle|amy|veena|alice|anna|laura|joanna|kendra|kimberly|salli|ivy|helen|grace|claire|emily|olivia|sarah|catherine|charlotte|lydia|sandy|melina|damayanti|angelica|paulina|carmit|yuna|lekha|sin-ji|sinji|mei-jia|meijia|zosia|ioana|milena|mariska/i.test(v.name));
-  const male   = voicesList.filter(v => !female.includes(v));
-
-  const addGroup = (label, list) => {
-    if (!list.length) return;
-    const g = document.createElement('optgroup');
-    g.label = label;
-    list.forEach(v => {
-      const o = document.createElement('option');
-      o.value = v.name;
-      o.textContent = v.name.replace(/\s*\(.*\)/, '');
-      if (v.name === saved) o.selected = true;
-      g.appendChild(o);
-    });
-    sel.appendChild(g);
-  };
-
-  addGroup('Female voices', female);
-  addGroup('Male voices', male);
 }
-
 speechSynthesis.onvoiceschanged = populateVoices;
 populateVoices();
-
-function previewVoice() {
-  speak("Hey there! I'm ROBOTI, your AI assistant. How can I help you today?");
-}
 
 // ── ElevenLabs settings ────────────────────────────────────────
 function saveElSettings() {

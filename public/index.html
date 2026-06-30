@@ -705,23 +705,47 @@ function showAccountMsg(el, text, success) {
 }
 
 // ── TTS ────────────────────────────────────────────────────────
+function cleanTextForSpeech(text) {
+  return text
+    .replace(/```[\s\S]*?```/g, 'code block omitted')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/#{1,6}\s*/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/&amp;/g, 'and').replace(/&lt;/g, '').replace(/&gt;/g, '')
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function speak(text, onEnd) {
   if (!S.ttsEnabled && !S.convoMode) { onEnd?.(); return; }
   speechSynthesis.cancel();
 
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.rate  = S.speed;
+  const cleaned = cleanTextForSpeech(text);
   const chosenVoice = voicesList.find(v => v.name === S.voice);
-  if (chosenVoice) utt.voice = chosenVoice;
+  const isFemale = chosenVoice && /female|woman|girl|samantha|karen|moira|fiona|tessa|ava|victoria|allison|susan|zira|siri|nicky|serena|kate|hazel|aria|jenny|michelle|amy|veena|alice|anna|laura|joanna|kendra|kimberly|salli|ivy|helen|grace|claire|emily|olivia|sarah|catherine|charlotte|lydia/i.test(chosenVoice.name);
 
-  utt.onend = () => {
-    onEnd?.();
-    if (S.convoMode && !isStreaming) {
-      setTimeout(() => toggleMic(), 500);
-    }
-  };
+  // Split into sentences so long responses don't get cut off (Chrome bug)
+  const sentences = cleaned.match(/[^.!?]+[.!?]+/g) || [cleaned];
+  let i = 0;
 
-  speechSynthesis.speak(utt);
+  function speakNext() {
+    if (i >= sentences.length) { onEnd?.(); if (S.convoMode && !isStreaming) setTimeout(() => toggleMic(), 500); return; }
+    const utt = new SpeechSynthesisUtterance(sentences[i++].trim());
+    utt.rate  = S.speed;
+    utt.pitch = isFemale ? 1.05 : 0.9;
+    if (chosenVoice) utt.voice = chosenVoice;
+    utt.onend = speakNext;
+    utt.onerror = speakNext;
+    speechSynthesis.speak(utt);
+  }
+
+  speakNext();
 }
 
 // ── STT ────────────────────────────────────────────────────────

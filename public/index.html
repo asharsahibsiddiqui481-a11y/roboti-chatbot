@@ -662,6 +662,21 @@
     <p id="el-status" style="font-size:11.5px;margin-top:6px;display:none"></p>
   </div>
 
+  <!-- Memory section -->
+  <div class="settings-section">
+    <div class="settings-section-title">🧠 Memory</div>
+    <div class="settings-row">
+      <div>
+        <div class="settings-label">Conversation Memory</div>
+        <div class="settings-sublabel">ROBOTI remembers what you say and builds context over time</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-memory" checked onchange="saveSettings()">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+  </div>
+
   <!-- Integrations section -->
   <div class="settings-section">
     <div class="settings-section-title">🔌 Integrations</div>
@@ -1040,6 +1055,7 @@ function renderSessionList() {
 const S = {
   get convoMode()  { return document.getElementById('toggle-convo').checked; },
   get ttsEnabled() { return document.getElementById('toggle-tts').checked; },
+  get memory()     { return document.getElementById('toggle-memory').checked; },
   get speed()      { return parseFloat(document.getElementById('speed-range').value); },
   get datetime()   { return document.getElementById('toggle-datetime').checked; },
   get weather()    { return document.getElementById('toggle-weather').checked; },
@@ -1048,7 +1064,7 @@ const S = {
 function saveSettings() {
   localStorage.setItem('roboti_settings', JSON.stringify({
     convoMode: S.convoMode, ttsEnabled: S.ttsEnabled,
-    speed: S.speed, datetime: S.datetime, weather: S.weather,
+    memory: S.memory, speed: S.speed, datetime: S.datetime, weather: S.weather,
   }));
   // sync header voice button visual
   if (S.ttsEnabled || S.convoMode) {
@@ -1063,6 +1079,7 @@ function loadSettings() {
     const s = JSON.parse(localStorage.getItem('roboti_settings') || '{}');
     if (s.convoMode  != null) document.getElementById('toggle-convo').checked    = s.convoMode;
     if (s.ttsEnabled != null) document.getElementById('toggle-tts').checked      = s.ttsEnabled;
+    if (s.memory     != null) document.getElementById('toggle-memory').checked   = s.memory;
     if (s.speed      != null) { document.getElementById('speed-range').value = s.speed; updateSpeedLabel(s.speed); }
     if (s.datetime   != null) document.getElementById('toggle-datetime').checked = s.datetime;
     if (s.weather    != null) document.getElementById('toggle-weather').checked  = s.weather;
@@ -1556,9 +1573,10 @@ async function sendMessage() {
   let assistantText = '';
 
   try {
+    const payload = S.memory ? messages : [messages[messages.length - 1]];
     const res = await fetch('/api/chat', {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ messages, context: buildContext() }),
+      body: JSON.stringify({ messages: payload, context: buildContext() }),
     });
 
     if (res.status === 401) {

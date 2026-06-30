@@ -1212,6 +1212,7 @@ function showAccountMsg(el, text, success) {
 // ── TTS ────────────────────────────────────────────────────────
 function cleanTextForSpeech(text) {
   return text
+    .replace(/ROBOTI/g, 'Robotee')
     .replace(/```[\s\S]*?```/g, 'code block omitted')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/\*\*(.*?)\*\*/g, '$1')
